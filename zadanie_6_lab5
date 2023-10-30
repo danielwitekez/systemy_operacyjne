@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+int main() {
+    sem_t sem1, sem2;
+
+    sem_init(&sem1, 0, 1);
+    sem_init(&sem2, 0, 1);
+
+    pid_t child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("Błąd przy tworzeniu potomka");
+        exit(EXIT_FAILURE);
+    } else if (child_pid == 0) {
+        // Proces potomny
+        sem_wait(&sem1);
+        printf("Proces potomny otrzymał semafor 1\n");
+        sleep(2);  // Symulacja opóźnienia
+
+        sem_wait(&sem2);
+        printf("Proces potomny otrzymał semafor 2\n");
+        sem_post(&sem1);
+        sem_post(&sem2);
+        exit(0);
+    } else {
+        // Proces rodzicielski
+        sem_wait(&sem2);
+        printf("Proces rodzicielski otrzymał semafor 2\n");
+        sleep(2);  // Symulacja opóźnienia
+
+        sem_wait(&sem1);
+        printf("Proces rodzicielski otrzymał semafor 1\n");
+        sem_post(&sem1);
+        sem_post(&sem2);
+
+        // Oczekiwanie na zakończenie procesu potomnego
+        wait(NULL);
+    }
+
+    sem_destroy(&sem1);
+    sem_destroy(&sem2);
+
+    return 0;
+}
