@@ -1,0 +1,50 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+int main() {
+    sem_t *semaphore;
+    const char *semaphore_name = "/my_semaphore";
+
+    // Utworzenie i inicjalizacja semafora
+    semaphore = sem_open(semaphore_name, O_CREAT, 0644, 0);
+    if (semaphore == SEM_FAILED) {
+        perror("Nie można utworzyć semafora");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t child_pids[5];
+
+    for (int i = 0; i < 5; i++) {
+        child_pids[i] = fork();
+
+        if (child_pids[i] < 0) {
+            perror("Błąd przy tworzeniu potomka");
+            exit(EXIT_FAILURE);
+        } else if (child_pids[i] == 0) {
+            int sem_value;
+            sem_getvalue(semaphore, &sem_value);
+
+            while (sem_value < i) {
+                sem_getvalue(semaphore, &sem_value);
+            }
+
+            printf("Proces %d ustawia semafor na %d\n", getpid(), sem_value + 1);
+            sem_post(semaphore);
+            exit(0);
+        }
+    }
+
+    for (int i = 0; i < 5; i++) {
+        waitpid(child_pids[i], NULL, 0);
+    }
+
+    sem_close(semaphore);
+    sem_unlink(semaphore_name);
+
+    return 0;
+}
