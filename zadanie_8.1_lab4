@@ -1,0 +1,38 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/msg.h>
+
+struct msgbuf {
+    long mtype;
+    int number;
+};
+
+int utworzKolejkeKomunikatow(key_t klucz) {
+    int idKolejki = msgget(klucz, 0666 | IPC_CREAT);
+    if (idKolejki == -1) {
+        perror("msgget");
+        exit(1);
+    }
+    return idKolejki;
+}
+
+void wyslijLiczbyParzyste(int idKolejki) {
+    for (int i = 2; i <= 10; i += 2) {
+        struct msgbuf wiadomosc;
+        wiadomosc.mtype = 1;
+        wiadomosc.number = i;
+
+        if (msgsnd(idKolejki, &wiadomosc, sizeof(wiadomosc.number), 0) == -1) {
+            perror("msgsnd");
+            exit(1);
+        }
+    }
+}
+
+int main() {
+    key_t klucz = ftok("/tmp", 'F');
+    int idKolejki = utworzKolejkeKomunikatow(klucz);
+    wyslijLiczbyParzyste(idKolejki);
+
+    return 0;
+}
