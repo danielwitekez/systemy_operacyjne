@@ -1,0 +1,67 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+int main() {
+    const char *fifo_name = "/tmp/my_fifo";
+    int fifo_fd;
+
+    mkfifo(fifo_name, 0666);
+    fifo_fd = open(fifo_name, O_RDWR);
+
+    sem_t *write_sem, *read_sem;
+
+    // Utworzenie i inicjalizacja semaforów
+    write_sem = sem_open("/write_semaphore", O_CREAT, 0644, 1);
+    read_sem = sem_open("/read_semaphore", O_CREAT, 0644, 0);
+
+    if (write_sem == SEM_FAILED || read_sem == SEM_FAILED) {
+        perror("Nie można utworzyć semaforów");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("Błąd przy tworzeniu potomka");
+        exit(EXIT_FAILURE);
+    } else if (child_pid == 0) {
+        // Proces potomny (czytanie z łącza nazwanego)
+        char buffer[256];
+        sem_wait(read_sem);
+
+        read(fifo_fd, buffer, sizeof(buffer));
+        printf("Odczytano: %s", buffer);
+
+        sem_post(write_sem);
+
+        exit(0);
+    } else {
+        // Proces rodzicielski (pisanie do łącza nazwanego)
+        char message[] = "Przykładowa wiadomość";
+        sem_wait(write_sem);
+
+        write(fifo_fd, message, strlen(message) + 1);
+        printf("Wysłano: %s", message);
+
+        sem_post(read_sem);
+    }
+
+    // Usunięcie semaforów
+    sem_close(write_sem);
+    sem_unlink("/write_semaphore");
+    sem_close(read_sem);
+    sem_unlink("/read_semaphore");
+
+    // Zamknięcie i usunięcie łącza nazwanego
+    close(fifo_fd);
+    unlink(fifo_name);
+
+    return 0;
+}
