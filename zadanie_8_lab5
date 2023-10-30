@@ -1,0 +1,63 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/stat.h>
+
+union semun {
+    int val;
+    struct semid_ds *buf;
+    unsigned short *array;
+};
+
+int main() {
+    int sem_id;
+    key_t key = ftok("/tmp/semfile", 'S');  // Tworzenie klucza dla semafora
+
+    // Utworzenie semafora z 3 elementami (setall)
+    sem_id = semget(key, 3, IPC_CREAT | 0666);
+    if (sem_id == -1) {
+        perror("Nie można utworzyć semafora");
+        exit(EXIT_FAILURE);
+    }
+
+    unsigned short values[3] = {1, 2, 3};  // Wartości początkowe dla semaforów
+
+    union semun arg;
+    arg.array = values;
+
+    if (semctl(sem_id, 0, SETALL, arg) == -1) {
+        perror("Nie można ustawić wartości semaforów");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Wartości semaforów po ustawieniu:\n");
+    if (semctl(sem_id, 0, GETALL, arg) == -1) {
+        perror("Nie można pobrać wartości semaforów");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < 3; i++) {
+        printf("Semafor %d: %d\n", i, values[i]);
+    }
+
+    struct semid_ds sem_info;
+
+    if (semctl(sem_id, 0, IPC_STAT, &sem_info) == -1) {
+        perror("Nie można pobrać informacji o semaforze");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Informacje o semaforze:\n");
+    printf("Ostatnia operacja semop: %ld\n", sem_info.sem_otime);
+    printf("Liczba operacji semop: %ld\n", sem_info.sem_nsems);
+    printf("Prawa dostępu do semafora: %o\n", sem_info.sem_perm.mode);
+
+    // Usunięcie semafora
+    semctl(sem_id, 0, IPC_RMID);
+
+    return 0;
+}
