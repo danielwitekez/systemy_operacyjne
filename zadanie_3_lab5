@@ -1,1 +1,59 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <semaphore.h>
+#include <fcntl.h>
+#include <unistd.h>
 
+int main() {
+    sem_t *semaphores[10];
+    const char *semaphore_names[10] = {
+        "/semaphore0", "/semaphore1", "/semaphore2", "/semaphore3", "/semaphore4",
+        "/semaphore5", "/semaphore6", "/semaphore7", "/semaphore8", "/semaphore9"
+    };
+
+    // Utworzenie i inicjalizacja 10 semaforów
+    for (int i = 0; i < 10; i++) {
+        semaphores[i] = sem_open(semaphore_names[i], O_CREAT, 0644, 1);
+        if (semaphores[i] == SEM_FAILED) {
+            perror("Nie można utworzyć semaforów");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    pid_t child_pids[10];
+
+    // Utworzenie 10 procesów potomnych
+    for (int i = 0; i < 10; i++) {
+        child_pids[i] = fork();
+
+        if (child_pids[i] < 0) {
+            perror("Błąd przy tworzeniu potomka");
+            exit(EXIT_FAILURE);
+        } else if (child_pids[i] == 0) {
+            // Proces potomny
+            sleep(1);  // Uśpij proces na sekundę
+
+            // Ustawienie odpowiedniego semafora na zero
+            sem_wait(semaphores[i]);
+
+            printf("Proces potomny %d ustawia semafor %d na zero\n", getpid(), i);
+
+            sem_post(semaphores[i]);
+
+            exit(0);
+        }
+    }
+
+    // Oczekiwanie na zakończenie wszystkich procesów potomnych
+    for (int i = 0; i < 10; i++) {
+        wait(NULL);
+    }
+
+    // Usunięcie semaforów
+    for (int i = 0; i < 10; i++) {
+        sem_close(semaphores[i]);
+        sem_unlink(semaphore_names[i]);
+    }
+
+    return 0;
+}
