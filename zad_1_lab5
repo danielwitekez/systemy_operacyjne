@@ -1,0 +1,70 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <unistd.h>
+
+#define SEM_KEY 12345
+
+int main() {
+    int sem_id;
+    pid_t child_pid;
+
+    // Tworzenie prywatnego semafora z wartością początkową 1
+    sem_id = semget(SEM_KEY, 1, IPC_CREAT | 0666);
+    if (sem_id == -1) {
+        perror("Nie można utworzyć semafora");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Inicjalizacja semafora
+    if (semctl(sem_id, 0, SETVAL, 1) == -1) {
+        perror("Nie można zainicjować semafora");
+        exit(EXIT_FAILURE);
+    }
+
+    child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("Błąd przy tworzeniu potomka");
+        exit(EXIT_FAILURE);
+    } else if (child_pid == 0) {
+        // Proces potomny
+        for (int i = 0; i < 50; i++) {
+            struct sembuf sem_op;
+            sem_op.sem_num = 0;
+            sem_op.sem_op = -1; // Oczekiwanie na dostęp do semafora
+            sem_op.sem_flg = 0;
+            semop(sem_id, &sem_op, 1);
+
+            printf("Jestem procesem potomnym (%d)\n", getpid());
+
+            sem_op.sem_num = 0;
+            sem_op.sem_op = 1; // Zwolnienie semafora
+            sem_op.sem_flg = 0;
+            semop(sem_id, &sem_op, 1);
+        }
+    } else {
+        // Proces rodzicielski
+        for (int i = 0; i < 50; i++) {
+            struct sembuf sem_op;
+            sem_op.sem_num = 0;
+            sem_op.sem_op = -1; // Oczekiwanie na dostęp do semafora
+            sem_op.sem_flg = 0;
+            semop(sem_id, &sem_op, 1);
+
+            printf("Jestem procesem rodzicielskim (%d)\n", getpid());
+
+            sem_op.sem_num = 0;
+            sem_op.sem_op = 1; // Zwolnienie semafora
+            sem_op.sem_flg = 0;
+            semop(sem_id, &sem_op, 1);
+        }
+    }
+
+    // Usuwanie semafora
+    semctl(sem_id, 0, IPC_RMID);
+
+    return 0;
+}
