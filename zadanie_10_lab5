@@ -1,0 +1,63 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <semaphore.h>
+#include <fcntl.h> // Dodano brakujący plik nagłówkowy
+#include <string.h>
+
+int main() {
+    int pipe_fd[2];  // Tablica do przechowywania deskryptorów łącza
+    sem_t *mutex;    // Semafor do synchronizacji
+
+    // Utworzenie łącza nienazwanego
+    if (pipe(pipe_fd) == -1) {
+        perror("Błąd podczas tworzenia łącza");
+        exit(EXIT_FAILURE);
+    }
+
+    // Utworzenie semafora
+    mutex = sem_open("/my_semaphore", O_CREAT, 0644, 1);
+    if (mutex == SEM_FAILED) {
+        perror("Błąd podczas tworzenia semafora");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("Błąd przy tworzeniu potomka");
+        exit(EXIT_FAILURE);
+    } else if (child_pid == 0) {
+        // Proces potomny (proces odbierający dane)
+        sem_wait(mutex);  // Oczekuj na dostęp do łącza
+
+        char buffer[100];
+        read(pipe_fd[0], buffer, sizeof(buffer));
+        printf("Proces potomny odczytał: %s\n", buffer);
+
+        sem_post(mutex);  // Zwolnij dostęp do łącza
+        exit(0);
+    } else {
+        // Proces rodzicielski (proces wysyłający dane)
+        sem_wait(mutex);  // Oczekuj na dostęp do łącza
+
+        char message[] = "To jest wiadomość z procesu rodzicielskiego";
+        write(pipe_fd[1], message, strlen(message) + 1);
+        printf("Proces rodzicielski wysłał: %s\n", message);
+
+        sem_post(mutex);  // Zwolnij dostęp do łącza
+
+        // Oczekiwanie na zakończenie procesu potomnego
+        wait(NULL);
+    }
+
+    // Zamknięcie łącza i usunięcie semafora
+    close(pipe_fd[0]);
+    close(pipe_fd[1]);
+    sem_close(mutex);
+    sem_unlink("/my_semaphore");
+
+    return 0;
+}
