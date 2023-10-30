@@ -1,0 +1,39 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/msg.h>
+
+struct msgbuf {
+    long mtype;
+    int number;
+};
+
+int utworzKolejkeKomunikatow(key_t klucz) {
+    int idKolejki = msgget(klucz, 0666 | IPC_CREAT);
+    if (idKolejki == -1) {
+        perror("msgget");
+        exit(1);
+    }
+    return idKolejki;
+}
+
+int odbierzISumujLiczby(int idKolejki) {
+    int suma = 0;
+    struct msgbuf wiadomosc;
+
+    // Odczytaj i sumuj liczby z kolejki
+    while (msgrcv(idKolejki, &wiadomosc, sizeof(wiadomosc.number), 0, IPC_NOWAIT) != -1) {
+        suma += wiadomosc.number;
+    }
+
+    return suma;
+}
+
+int main() {
+    key_t klucz = ftok("/tmp", 'F');
+    int idKolejki = utworzKolejkeKomunikatow(klucz);
+    int suma = odbierzISumujLiczby(idKolejki);
+
+    printf("Suma parzystych liczb: %d\n", suma);
+
+    return 0;
+}
