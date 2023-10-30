@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <string.h>
+#include <semaphore.h>
+#include <fcntl.h>  // Dodano brakujący plik nagłówkowy
+#include <sys/wait.h>
+
+#define KEY 12345
+
+struct message {
+    long type;
+    char text[100];
+};
+
+int main() {
+    int msg_id;
+    key_t key = KEY;
+    struct message msg;
+    sem_t *empty_sem, *full_sem;
+
+    // Tworzenie kolejki komunikatów
+    msg_id = msgget(key, IPC_CREAT | 0666);
+    if (msg_id == -1) {
+        perror("Nie można utworzyć kolejki komunikatów");
+        exit(EXIT_FAILURE);
+    }
+
+    // Tworzenie semaforów
+    empty_sem = sem_open("/empty_semaphore", O_CREAT, 0644, 10);
+    full_sem = sem_open("/full_semaphore", O_CREAT, 0644, 0);
+
+    if (empty_sem == SEM_FAILED || full_sem == SEM_FAILED) {
+        perror("Nie można utworzyć semaforów");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t child_pid = fork();
+
+    if (child_pid < 0) {
+        perror("Błąd przy tworzeniu potomka");
+        exit(EXIT_FAILURE);
+    } else if (child_pid == 0) {
+        // Proces potomny (konsument)
+        for (int i = 0; i < 10; i++) {
+            sem_wait(full_sem);  // Oczekuj na dostęp do kolejki
+
+            msgrcv(msg_id, &msg, sizeof(msg.text), 1, 0);
+            printf("Konsument odczytał: %s\n", msg.text);
+
+            sem_post(empty_sem);  // Zwiększ ilość pustych miejsc w kolejce
+        }
+    } else {
+        // Proces rodzicielski (producent)
+        for (int i = 0; i < 10; i++) {
+            sem_wait(empty_sem);  // Oczekuj na puste miejsce w kolejce
+
+            snprintf(msg.text, sizeof(msg.text), "Komunikat %d", i);
+            msg.type = 1;
+            msgsnd(msg_id, &msg, sizeof(msg.text), 0);
+            printf("Producent wysłał: %s\n", msg.text);
+
+            sem_post(full_sem);  // Zwiększ ilość komunikatów w kolejce
+        }
+
+        // Oczekiwanie na zakończenie procesu potomnego
+        waitpid(child_pid, NULL, 0);
+    }
+
+    // Usunięcie kolejki komunikatów
+    msgctl(msg_id, IPC_RMID, NULL);
+
+    // Usunięcie semaforów
+    sem_close(empty_sem);
+    sem_unlink("/empty_semaphore");
+    sem_close(full_sem);
+    sem_unlink("/full_semaphore");
+
+    return 0;
+}
