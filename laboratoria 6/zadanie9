@@ -1,0 +1,153 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/shm.h>
+#include <time.h>
+#include <errno.h>
+#include <sys/wait.h>
+
+#define MAX_MSG_SIZE 100
+#define NUM_MESSAGES 10
+
+// Struktura komunikatu
+struct message {
+    long mtype;
+    char mtext[MAX_MSG_SIZE];
+};
+
+// Funkcja do tworzenia kolejki komunikatów
+int createMessageQueue() {
+    key_t key = ftok("keyfile", 65);
+    int msgid = msgget(key, IPC_CREAT | 0666);
+    if (msgid == -1) {
+        perror("msgget");
+        exit(1);
+    }
+    return msgid;
+}
+
+// Funkcja do tworzenia pamięci dzielonej
+int createSharedMemory() {
+    key_t key = ftok("keyfile", 65);
+    int shmid = shmget(key, MAX_MSG_SIZE, IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("shmget");
+        exit(1);
+    }
+    return shmid;
+}
+
+// Funkcja do mierzenia czasu
+double measureTime(struct timespec start, struct timespec end) {
+    return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+}
+
+// Procesy komunikujące się za pomocą kolejki komunikatów
+void messageQueueProcesses(int msgid) {
+    struct timespec start, end;
+    double elapsed_time;
+
+    if (fork() == 0) {
+        struct message msg;
+        msg.mtype = 1;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            strcpy(msg.mtext, "Message from Process 1");
+            if (msgsnd(msgid, &msg, sizeof(msg.mtext), 0) == -1) {
+                perror("msgsnd");
+                exit(1);
+            }
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        elapsed_time = measureTime(start, end);
+        printf("Time taken by Process 1 using message queue: %f seconds\n", elapsed_time);
+    } else {
+        if (fork() == 0) {
+            struct message msg;
+            msg.mtype = 1;
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            for (int i = 0; i < NUM_MESSAGES; i++) {
+                if (msgrcv(msgid, &msg, sizeof(msg.mtext), 1, 0) == -1) {
+                    perror("msgrcv");
+                    exit(1);
+                }
+            }
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            elapsed_time = measureTime(start, end);
+            printf("Time taken by Process 2 using message queue: %f seconds\n", elapsed_time);
+        }
+    }
+
+    wait(NULL);
+    wait(NULL);
+}
+
+// Procesy komunikujące się za pomocą pamięci dzielonej
+void sharedMemoryProcesses(int shmid) {
+    struct timespec start, end;
+    double elapsed_time;
+
+    if (fork() == 0) {
+        char shared_memory = (char)shmat(shmid, (void*)0, 0);
+        if (shared_memory == (void*)-1) {
+            perror("shmat");
+            exit(1);
+        }
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            strcpy(shared_memory, "Message from Process 3");
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        elapsed_time = measureTime(start, end);
+        printf("Time taken by Process 3 using shared memory: %f seconds\n", elapsed_time);
+        shmdt(shared_memory);
+    } else {
+        if (fork() == 0) {
+            char shared_memory = (char)shmat(shmid, (void*)0, 0);
+            if (shared_memory == (void*)-1) {
+                perror("shmat");
+                exit(1);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            for (int i = 0; i < NUM_MESSAGES; i++) {
+                shmdt(shared_memory);
+                shared_memory = (char*)shmat(shmid, (void*)0, 0);
+                if (shared_memory == (void*)-1) {
+                    perror("shmat");
+                    exit(1);
+                }
+                shmdt(shared_memory);
+            }
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            elapsed_time = measureTime(start, end);
+            printf("Time taken by Process 4 using shared memory: %f seconds\n", elapsed_time);
+        }
+    }
+
+    wait(NULL);
+    wait(NULL);
+}
+
+int main(void) {
+    int msgid = createMessageQueue();
+    int shmid = createSharedMemory();
+
+    messageQueueProcesses(msgid);
+    sharedMemoryProcesses(shmid);
+
+    // Usuwanie kolejki komunikatów i segmentu pamięci dzielonej
+    if (msgctl(msgid, IPC_RMID, NULL) == -1) {
+        perror("msgctl");
+        exit(1);
+    }
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+        perror("shmctl");
+        exit(1);
+    }
+
+    return 0;
+}
