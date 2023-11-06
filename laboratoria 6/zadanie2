@@ -42,6 +42,8 @@ int main(void) {
     
     sharedValue = (int *)shmaddr;
     *sharedValue = 10;
+    
+    printf("Początkowa wartość: %d\n", *sharedValue);
 
     semid = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666);
     if (semid < 0) {
