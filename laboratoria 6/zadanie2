@@ -26,9 +26,9 @@ void V(int semid, int sem_num) {
 int main(void) {
     int shmid, semid;
     char *shmaddr;
-    char message[] = "To jest obszar pamięci dzielonej.";
+    int *sharedValue;
 
-    shmid = shmget(IPC_PRIVATE, sizeof(message), IPC_CREAT | 0666);
+    shmid = shmget(IPC_PRIVATE, sizeof(int), IPC_CREAT | 0666);
     if (shmid < 0) {
         perror("shmget");
         exit(1);
@@ -39,15 +39,17 @@ int main(void) {
         perror("shmat");
         exit(1);
     }
+    
+    sharedValue = (int *)shmaddr;
+    *sharedValue = 10;
 
-    semid = semget(IPC_PRIVATE, 2, IPC_CREAT | 0666);
+    semid = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666);
     if (semid < 0) {
         perror("semget");
         exit(1);
     }
 
     semctl(semid, 0, SETVAL, 1);
-    semctl(semid, 1, SETVAL, 0);
 
     int process_id = fork();
 
@@ -56,8 +58,9 @@ int main(void) {
         exit(1);
     } else if (process_id == 0) {
         P(semid, 0);
-        strcpy(shmaddr, "Proces 1 zapisuje dane.");
-        V(semid, 1);
+        (*sharedValue)--;
+        printf("Proces 1: Wartość zmniejszona na %d\n", *sharedValue);
+        V(semid, 0);
         exit(0);
     } else {
         int process_id2 = fork();
@@ -66,8 +69,9 @@ int main(void) {
             exit(1);
         } else if (process_id2 == 0) {
             P(semid, 0);
-            strcpy(shmaddr, "Proces 2 zapisuje dane.");
-            V(semid, 1);
+            (*sharedValue)--;
+            printf("Proces 2: Wartość zmniejszona na %d\n", *sharedValue);
+            V(semid, 0);
             exit(0);
         } else {
             for (int i = 0; i < 2; i++) {
