@@ -33,7 +33,7 @@ void attachSharedMemory(int shmid, struct shared_data **shared_memory) {
     }
 }
 
-int main() {
+int main(void) {
     key_t key = ftok("keyfile", 65);
     int shmid;
     struct shared_data *shared_memory;
