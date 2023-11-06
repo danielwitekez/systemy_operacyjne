@@ -1,0 +1,108 @@
+// program 1
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <unistd.h>
+
+int main(void) {
+    int shmid, semid;
+    char *shmaddr;
+    struct shmid_ds shminfo;
+
+    // Tworzenie pamięci dzielonej
+    key_t key = ftok("shmfile", 'A');
+    shmid = shmget(key, 1024, IPC_CREAT | 0666);
+
+    if (shmid == -1) {
+        perror("shmget");
+        exit(1);
+    }
+
+    // Tworzenie semafora
+    key_t semkey = ftok("semfile", 'A');
+    semid = semget(semkey, 1, IPC_CREAT | 0666);
+
+    if (semid == -1) {
+        perror("semget");
+        exit(1);
+    }
+
+    // Przydzielanie pamięci dzielonej
+    shmaddr = shmat(shmid, (void *)0, 0);
+
+    if (shmaddr == (char *)-1) {
+        perror("shmat");
+        exit(1);
+    }
+
+    // Inicjalizacja pamięci dzielonej
+    strcpy(shmaddr, "Komunikat z Programu A");
+
+    for (int i = 0; i < 2; i++) {
+        sleep(2);  // Czekaj na odbiór komunikatu przez Program B
+
+        // Zmiana praw dostępu do pamięci dzielonej (tylko do odczytu)
+        shmctl(shmid, IPC_STAT, &shminfo);
+        shminfo.shm_perm.mode = 0444; // zmiana na dostęp tylko do odczytu
+        shmctl(shmid, IPC_SET, &shminfo);
+
+        printf("Program A: Zmiana praw dostępu do pamięci dzielonej (tylko do odczytu)\n");
+    }
+
+    // Oczekiwan
+    return 0;
+}
+
+
+// program 2
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <unistd.h>
+
+int main(void) {
+    int shmid, semid;
+    char *shmaddr;
+
+    // Pobieranie pamięci dzielonej
+    key_t key = ftok("shmfile", 'A'); // Ten sam klucz co w Programie A
+    shmid = shmget(key, 1024, 0); // 0 oznacza tylko dostęp do istniejącej pamięci
+
+    if (shmid == -1) {
+        perror("shmget");
+        exit(1);
+    }
+
+    // Pobieranie semafora
+    key_t semkey = ftok("semfile", 'A'); // Ten sam klucz co w Programie A
+    semid = semget(semkey, 1, 0); // 0 oznacza tylko dostęp do istniejącego semafora
+
+    if (semid == -1) {
+        perror("semget");
+        exit(1);
+    }
+
+    // Przydzielanie pamięci dzielonej
+    shmaddr = shmat(shmid, (void *)0, 0);
+
+    if (shmaddr == (char *)-1) {
+        perror("shmat");
+        exit(1);
+    }
+
+    for (int i = 0; i < 2; i++) {
+        // Odczyt komunikatu z pamięci dzielonej
+        printf("Program B: Odczytano z pamięci dzielonej: %s\n", shmaddr);
+
+        sleep(2); // Czekaj przed ponownym odczytem
+    }
+
+    return 0;
+}
