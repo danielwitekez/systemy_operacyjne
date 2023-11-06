@@ -46,7 +46,7 @@ void processData(struct shared_data *source, struct shared_data *destination) {
     strcpy(destination->data, source->data);
 }
 
-int main() {
+int main(void) {
     key_t key = ftok("keyfile", 65);
     int shmid1, shmid2;
     struct shared_data *shared_memory1, *shared_memory2;
