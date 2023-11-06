@@ -1,0 +1,100 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+void P(int semid, int sem_num) {
+    struct sembuf op;
+    op.sem_num = sem_num;
+    op.sem_op = -1;
+    op.sem_flg = 0;
+    semop(semid, &op, 1);
+}
+
+void V(int semid, int sem_num) {
+    struct sembuf op;
+    op.sem_num = sem_num;
+    op.sem_op = 1;
+    op.sem_flg = 0;
+    semop(semid, &op, 1);
+}
+
+int main(void) {
+    int shmid, semid;
+    char *shmaddr;
+    int *buffer;
+    int in = 0, out = 0;
+
+    shmid = shmget(IPC_PRIVATE, 5 * sizeof(int), IPC_CREAT | 0666);
+    if (shmid < 0) {
+        perror("shmget");
+        exit(1);
+    }
+
+    shmaddr = (char *)shmat(shmid, NULL, 0);
+    if (shmaddr == (char *)-1) {
+        perror("shmat");
+        exit(1);
+    }
+
+    buffer = (int *)shmaddr;
+
+    semid = semget(IPC_PRIVATE, 2, IPC_CREAT | 0666);
+    if (semid < 0) {
+        perror("semget");
+        exit(1);
+    }
+
+    semctl(semid, 0, SETVAL, 1);
+    semctl(semid, 1, SETVAL, 1);
+
+    for (int i = 0; i < 4; i++) {
+        if (fork() == 0) {
+            if (i % 2 == 0) {
+                // Producent
+                int produced = i + 1;
+                P(semid, 0);  // Blokuj dostęp do bufora
+                buffer[in] = produced;
+                in = (in + 1) % 5;
+                char producerMsg[100];
+                sprintf(producerMsg, "Producent %d: Wpisał %d do bufora\n", i, produced);
+                write(STDOUT_FILENO, producerMsg, strlen(producerMsg));
+                V(semid, 0);  // Zwolnij dostęp do bufora
+            } else {
+                // Konsument
+                int consumed;
+                P(semid, 1);  // Blokuj dostęp do bufora
+                consumed = buffer[out];
+                out = (out + 1) % 5;
+                char consumerMsg[100];
+                sprintf(consumerMsg, "Konsument %d: Odczytał %d z bufora\n", i, consumed);
+                write(STDOUT_FILENO, consumerMsg, strlen(consumerMsg));
+                V(semid, 1);  // Zwolnij dostęp do bufora
+            }
+            exit(0);
+        }
+    }
+
+    for (int i = 0; i < 4; i++) {
+        wait(NULL);
+    }
+
+    if (semctl(semid, 0, IPC_RMID) < 0) {
+        perror("semctl");
+    }
+
+    if (shmdt(shmaddr) < 0) {
+        perror("shmdt");
+    }
+
+    if (shmctl(shmid, IPC_RMID, NULL) < 0) {
+        perror("shmctl");
+    }
+
+    return 0;
+}
