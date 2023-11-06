@@ -22,7 +22,7 @@ int createSharedMemory() {
 
 // Funkcja do zapisu danych do segmentu pamięci dzielonej
 void writeToSharedMemory(int shmid, const char *data) {
-    char shared_memory = (char)shmat(shmid, (void*)0, 0);
+    char *shared_memory = (char*)shmat(shmid, (void*)0, 0);
     if (shared_memory == (void*)-1) {
         perror("shmat");
         exit(1);
@@ -47,7 +47,7 @@ void getSharedMemoryInfo(int shmid) {
     printf("Ostatnia operacja odczytu: %s", ctime(&shminfo.shm_ctime));
 }
 
-int main() {
+int main(void) {
     int shmid = createSharedMemory();
 
     const char *data = "Hello, shared memory!";
