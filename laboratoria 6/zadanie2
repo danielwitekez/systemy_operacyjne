@@ -4,6 +4,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define SHM_KEY 12345
@@ -77,10 +78,11 @@ int main(void) {
         } else {
             P(semid, SEM_TURN);
             printf("Proces macierzysty odczytuje dane: %s\n", shmaddr);
+            for (int i = 0; i < 2; i++) {
+                wait(NULL); // Czekaj na zakończenie obu procesów potomnych
+            }
         }
     }
-
-    wait(NULL);
 
     if (shmdt(shmaddr) == -1) {
         perror("Błąd przy odlaczaniu obszaru pamięci dzielonej");
