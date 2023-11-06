@@ -58,23 +58,23 @@ int main(void) {
             if (i % 2 == 0) {
                 // Producent
                 int produced = i + 1;
-                P(semid, 0);  // Blokuj dostęp do bufora
+                P(semid, 0);
                 buffer[in] = produced;
                 in = (in + 1) % 5;
                 char producerMsg[100];
                 sprintf(producerMsg, "Producent %d: Wpisał %d do bufora\n", i, produced);
                 write(STDOUT_FILENO, producerMsg, strlen(producerMsg));
-                V(semid, 0);  // Zwolnij dostęp do bufora
+                V(semid, 0);
             } else {
                 // Konsument
                 int consumed;
-                P(semid, 1);  // Blokuj dostęp do bufora
+                P(semid, 1);
                 consumed = buffer[out];
                 out = (out + 1) % 5;
                 char consumerMsg[100];
                 sprintf(consumerMsg, "Konsument %d: Odczytał %d z bufora\n", i, consumed);
                 write(STDOUT_FILENO, consumerMsg, strlen(consumerMsg));
-                V(semid, 1);  // Zwolnij dostęp do bufora
+                V(semid, 1);
             }
             exit(0);
         }
