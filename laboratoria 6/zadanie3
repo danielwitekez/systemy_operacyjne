@@ -65,9 +65,15 @@ int main(void) {
             if (i < numWriters) {
                 P(semid, 0);
                 (*sharedValue)++;
+                char writerMsg[100];
+                sprintf(writerMsg, "Pisarz %d: Zapisano wartość %d\n", i, *sharedValue);
+                write(STDOUT_FILENO, writerMsg, strlen(writerMsg));
                 V(semid, 0);
             } else {
                 P(semid, 1);
+                char readerMsg[100];
+                sprintf(readerMsg, "Czytelnik %d: Odczytano wartość %d\n", i - numWriters, *sharedValue);
+                write(STDOUT_FILENO, readerMsg, strlen(readerMsg));
                 V(semid, 1);
             }
             exit(0);
