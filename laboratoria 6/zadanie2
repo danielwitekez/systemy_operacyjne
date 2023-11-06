@@ -65,6 +65,7 @@ int main(void) {
         strcpy(shmaddr, "Proces 1 zapisuje dane.");
         V(semid, SEM_TURN);
         V(semid, SEM_MUTEX);
+        exit(0);
     } else {
         int process_id2 = fork();
         if (process_id2 == -1) {
@@ -75,23 +76,25 @@ int main(void) {
             strcpy(shmaddr, "Proces 2 zapisuje dane.");
             V(semid, SEM_TURN);
             V(semid, SEM_MUTEX);
+            exit(0);
         } else {
-            P(semid, SEM_TURN);
-            printf("Proces macierzysty odczytuje dane: %s\n", shmaddr);
             for (int i = 0; i < 2; i++) {
                 wait(NULL); // Czekaj na zakończenie obu procesów potomnych
             }
+
             // Usuń semafory
-            semctl(semid, 0, IPC_RMID);
+            if (semctl(semid, 0, IPC_RMID) == -1) {
+                perror("Błąd przy usuwaniu semaforów");
+            }
+
+            // Odlacz i usuń obszar pamięci dzielonej
+            if (shmdt(shmaddr) == -1) {
+                perror("Błąd przy odlaczaniu obszaru pamięci dzielonej");
+            }
+            if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+                perror("Błąd przy usuwaniu obszaru pamięci dzielonej");
+            }
         }
-    }
-
-    if (shmdt(shmaddr) == -1) {
-        perror("Błąd przy odlaczaniu obszaru pamięci dzielonej");
-    }
-
-    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
-        perror("Błąd przy usuwaniu obszaru pamięci dzielonej");
     }
 
     return 0;
