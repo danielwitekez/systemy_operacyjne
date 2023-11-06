@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+#define SHM_KEY 12345
+
+void error(const char *msg) {
+    perror(msg);
+    exit(1);
+}
+
+int main() {
+    int shmid;
+    char *shmaddr;
+    char message[] = "To jest prywatny obszar pamięci dzielonej.";
+
+    shmid = shmget(SHM_KEY, sizeof(message), IPC_CREAT | 0666);
+    if (shmid == -1) {
+        error("Błąd przy tworzeniu obszaru pamięci dzielonej");
+    }
+
+    shmaddr = (char *)shmat(shmid, NULL, 0);
+    if (shmaddr == (char *)-1) {
+        error("Błąd przy przyczepianiu obszaru pamięci dzielonej");
+    }
+
+    strcpy(shmaddr, message);
+    printf("Zapisano dane do obszaru pamięci dzielonej.\n");
+
+    printf("Odczytano dane z obszaru pamięci dzielonej: %s\n", shmaddr);
+
+    if (shmdt(shmaddr) == -1) {
+        error("Błąd przy odlaczaniu obszaru pamięci dzielonej");
+    }
+
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+        error("Błąd przy usuwaniu obszaru pamięci dzielonej");
+    }
+
+    return 0;
+}
