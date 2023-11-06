@@ -1,0 +1,59 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
+
+#define MAX_MSG_SIZE 100
+
+// Struktura obszaru pamięci dzielonej
+struct shared_data {
+    char data[MAX_MSG_SIZE];
+};
+
+// Funkcja do tworzenia obszaru pamięci dzielonej z flagą shm_rdonly
+int createSharedMemoryReadOnly(key_t key, size_t size) {
+    int shmid = shmget(key, size, IPC_CREAT | 0666 | SHM_RDONLY);
+    if (shmid == -1) {
+        perror("shmget");
+        exit(1);
+    }
+    return shmid;
+}
+
+// Funkcja do dołączania obszaru pamięci dzielonej
+void attachSharedMemory(int shmid, struct shared_data **shared_memory) {
+    *shared_memory = (struct shared_data *)shmat(shmid, (void *)0, 0);
+    if (*shared_memory == (void *)-1) {
+        perror("shmat");
+        exit(1);
+    }
+}
+
+int main() {
+    key_t key = ftok("keyfile", 65);
+    int shmid;
+    struct shared_data *shared_memory;
+
+    // Tworzenie obszaru pamięci dzielonej z flagą shm_rdonly
+    shmid = createSharedMemoryReadOnly(key, sizeof(struct shared_data));
+
+    attachSharedMemory(shmid, &shared_memory);
+
+    // Próba zapisu danych do obszaru pamięci dzielonej z flagą shm_rdonly
+    strcpy(shared_memory->data, "This will not work.");  // To nie zadziała
+
+    // Odczyt danych z obszaru pamięci dzielonej
+    printf("Data read from shared memory: %s\n", shared_memory->data);
+
+    // Usuwanie obszaru pamięci dzielonej
+    if (shmdt(shared_memory) == -1) {
+        perror("shmdt");
+        exit(1);
+    }
+
+    return 0;
+}
