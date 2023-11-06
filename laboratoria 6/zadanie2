@@ -1,0 +1,97 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <unistd.h>
+
+#define SHM_KEY 12345
+#define SEM_KEY 67890
+
+#define SEM_MUTEX 0
+#define SEM_TURN 1
+
+void P(int semid, int sem_num) {
+    struct sembuf op;
+    op.sem_num = sem_num;
+    op.sem_op = -1;
+    op.sem_flg = 0;
+    semop(semid, &op, 1);
+}
+
+void V(int semid, int sem_num) {
+    struct sembuf op;
+    op.sem_num = sem_num;
+    op.sem_op = 1;
+    op.sem_flg = 0;
+    semop(semid, &op, 1);
+}
+
+int main(void) {
+    int shmid, semid;
+    char *shmaddr;
+    char message[] = "To jest obszar pamięci dzielonej.";
+
+    shmid = shmget(SHM_KEY, sizeof(message), IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("Błąd przy tworzeniu obszaru pamięci dzielonej");
+        exit(1);
+    }
+
+    shmaddr = (char *)shmat(shmid, NULL, 0);
+    if (shmaddr == (char *)-1) {
+        perror("Błąd przy przyczepianiu obszaru pamięci dzielonej");
+        exit(1);
+    }
+
+    semid = semget(SEM_KEY, 2, IPC_CREAT | 0666);
+    if (semid == -1) {
+        perror("Błąd przy tworzeniu semaforów");
+        exit(1);
+    }
+
+    semctl(semid, SEM_MUTEX, SETVAL, 1);
+    semctl(semid, SEM_TURN, SETVAL, 0);
+
+    int process_id = fork();
+
+    if (process_id == -1) {
+        perror("Błąd przy tworzeniu procesu potomnego");
+        exit(1);
+    } else if (process_id == 0) {
+        P(semid, SEM_MUTEX);
+        strcpy(shmaddr, "Proces 1 zapisuje dane.");
+        V(semid, SEM_TURN);
+        V(semid, SEM_MUTEX);
+    } else {
+        int process_id2 = fork();
+        if (process_id2 == -1) {
+            perror("Błąd przy tworzeniu procesu potomnego 2");
+            exit(1);
+        } else if (process_id2 == 0) {
+            P(semid, SEM_MUTEX);
+            strcpy(shmaddr, "Proces 2 zapisuje dane.");
+            V(semid, SEM_TURN);
+            V(semid, SEM_MUTEX);
+        } else {
+            P(semid, SEM_TURN);
+            printf("Proces macierzysty odczytuje dane: %s\n", shmaddr);
+        }
+    }
+
+    wait(NULL);
+
+    if (shmdt(shmaddr) == -1) {
+        perror("Błąd przy odlaczaniu obszaru pamięci dzielonej");
+    }
+
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+        perror("Błąd przy usuwaniu obszaru pamięci dzielonej");
+    }
+    if (semctl(semid, 0, IPC_RMID) == -1) {
+        perror("Błąd przy usuwaniu semaforów");
+    }
+
+    return 0;
+}
