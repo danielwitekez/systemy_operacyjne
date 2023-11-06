@@ -5,14 +5,18 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <sys/stat.h>
-#include <time.h>
+#include <sys/wait.h>
+
 #define MAX_MSG_SIZE 100
 
-// Funkcja do tworzenia segmentu pamięci dzielonej
-int createSharedMemory() {
-    key_t key = ftok("keyfile", 65);
-    int shmid = shmget(key, MAX_MSG_SIZE, IPC_CREAT | 0666);
+// Struktura obszaru pamięci dzielonej
+struct shared_data {
+    char data[MAX_MSG_SIZE];
+};
+
+// Funkcja do tworzenia obszaru pamięci dzielonej
+int createSharedMemory(key_t key, size_t size) {
+    int shmid = shmget(key, size, IPC_CREAT | 0666);
     if (shmid == -1) {
         perror("shmget");
         exit(1);
@@ -20,46 +24,67 @@ int createSharedMemory() {
     return shmid;
 }
 
-// Funkcja do zapisu danych do segmentu pamięci dzielonej
-void writeToSharedMemory(int shmid, const char *data) {
-    char *shared_memory = (char*)shmat(shmid, (void*)0, 0);
-    if (shared_memory == (void*)-1) {
+// Funkcja do dołączania obszaru pamięci dzielonej
+void attachSharedMemory(int shmid, struct shared_data **shared_memory) {
+    *shared_memory = (struct shared_data *)shmat(shmid, (void *)0, 0);
+    if (*shared_memory == (void *)-1) {
         perror("shmat");
         exit(1);
     }
-    strcpy(shared_memory, data);
-    shmdt(shared_memory);
 }
 
-// Funkcja do uzyskania informacji na temat obszaru pamięci dzielonej
-void getSharedMemoryInfo(int shmid) {
-    struct shmid_ds shminfo;
-    if (shmctl(shmid, IPC_STAT, &shminfo) == -1) {
-        perror("shmctl");
-        exit(1);
-    }
-
-    printf("Informacje o segmencie pamięci dzielonej:\n");
-    printf("Rozmiar segmentu: %lu bajtów\n", shminfo.shm_segsz);
-    printf("Liczba przyczepionych procesów: %ld\n", shminfo.shm_nattch);
-    printf("Ostatnia operacja: %s", ctime(&shminfo.shm_atime));
-    printf("Ostatnia operacja zapisu: %s", ctime(&shminfo.shm_dtime));
-    printf("Ostatnia operacja odczytu: %s", ctime(&shminfo.shm_ctime));
-}
-
-int main(void) {
-    int shmid = createSharedMemory();
-
-    const char *data = "Hello, shared memory!";
-    writeToSharedMemory(shmid, data);
-
-    getSharedMemoryInfo(shmid);
-
-    // Usuwanie segmentu pamięci dzielonej
+// Funkcja do usuwania obszaru pamięci dzielonej
+void removeSharedMemory(int shmid) {
     if (shmctl(shmid, IPC_RMID, NULL) == -1) {
         perror("shmctl");
         exit(1);
     }
+}
+
+// Funkcja do komunikacji między procesami
+void processData(struct shared_data *source, struct shared_data *destination) {
+    strcpy(destination->data, source->data);
+}
+
+int main() {
+    key_t key = ftok("keyfile", 65);
+    int shmid1, shmid2;
+    struct shared_data *shared_memory1, *shared_memory2;
+
+    shmid1 = createSharedMemory(key, sizeof(struct shared_data));
+    shmid2 = createSharedMemory(key + 1, sizeof(struct shared_data));
+
+    attachSharedMemory(shmid1, &shared_memory1);
+    attachSharedMemory(shmid2, &shared_memory2);
+
+    strcpy(shared_memory1->data, "Message from Process 1");
+
+    if (fork() == 0) {
+        // Proces 2
+        processData(shared_memory1, shared_memory2);
+        wait(NULL);
+
+        printf("Process 2 received data: %s\n", shared_memory2->data);
+
+        // Usuwanie obszarów pamięci dzielonej
+        removeSharedMemory(shmid1);
+        removeSharedMemory(shmid2);
+    } else {
+        if (fork() == 0) {
+            // Proces 3
+            sleep(1);
+            printf("Process 3 received data: %s\n", shared_memory2->data);
+
+            // Usuwanie obszarów pamięci dzielonej
+            removeSharedMemory(shmid1);
+            removeSharedMemory(shmid2);
+            exit(0);
+        }
+    }
+
+    // Oczekuj na zakończenie procesów potomnych
+    wait(NULL);
+    wait(NULL);
 
     return 0;
 }
