@@ -12,7 +12,6 @@ int main(void) {
     char *shmaddr;
     struct shmid_ds shminfo;
 
-    // Tworzenie pamięci dzielonej
     key_t key = ftok("shmfile", 'A');
     shmid = shmget(key, 1024, IPC_CREAT | 0666);
 
@@ -21,7 +20,6 @@ int main(void) {
         exit(1);
     }
 
-    // Tworzenie semafora
     key_t semkey = ftok("semfile", 'A');
     semid = semget(semkey, 1, IPC_CREAT | 0666);
 
@@ -30,7 +28,6 @@ int main(void) {
         exit(1);
     }
 
-    // Przydzielanie pamięci dzielonej
     shmaddr = shmat(shmid, (void *)0, 0);
 
     if (shmaddr == (char *)-1) {
@@ -38,21 +35,18 @@ int main(void) {
         exit(1);
     }
 
-    // Inicjalizacja pamięci dzielonej
     strcpy(shmaddr, "Komunikat z Programu A");
 
     for (int i = 0; i < 2; i++) {
-        sleep(2);  // Czekaj na odbiór komunikatu przez Program B
+        sleep(2);  
 
-        // Zmiana praw dostępu do pamięci dzielonej (tylko do odczytu)
         shmctl(shmid, IPC_STAT, &shminfo);
-        shminfo.shm_perm.mode = 0444; // zmiana na dostęp tylko do odczytu
+        shminfo.shm_perm.mode = 0444;
         shmctl(shmid, IPC_SET, &shminfo);
 
         printf("Program A: Zmiana praw dostępu do pamięci dzielonej (tylko do odczytu)\n");
     }
 
-    // Oczekiwan
     return 0;
 }
 
@@ -71,25 +65,22 @@ int main(void) {
     int shmid, semid;
     char *shmaddr;
 
-    // Pobieranie pamięci dzielonej
-    key_t key = ftok("shmfile", 'A'); // Ten sam klucz co w Programie A
-    shmid = shmget(key, 1024, 0); // 0 oznacza tylko dostęp do istniejącej pamięci
+    key_t key = ftok("shmfile", 'A'); 
+    shmid = shmget(key, 1024, 0); 
 
     if (shmid == -1) {
         perror("shmget");
         exit(1);
     }
 
-    // Pobieranie semafora
-    key_t semkey = ftok("semfile", 'A'); // Ten sam klucz co w Programie A
-    semid = semget(semkey, 1, 0); // 0 oznacza tylko dostęp do istniejącego semafora
+    key_t semkey = ftok("semfile", 'A'); 
+    semid = semget(semkey, 1, 0);
 
     if (semid == -1) {
         perror("semget");
         exit(1);
     }
 
-    // Przydzielanie pamięci dzielonej
     shmaddr = shmat(shmid, (void *)0, 0);
 
     if (shmaddr == (char *)-1) {
@@ -101,7 +92,7 @@ int main(void) {
         // Odczyt komunikatu z pamięci dzielonej
         printf("Program B: Odczytano z pamięci dzielonej: %s\n", shmaddr);
 
-        sleep(2); // Czekaj przed ponownym odczytem
+        sleep(2);
     }
 
     return 0;
