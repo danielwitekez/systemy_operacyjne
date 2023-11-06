@@ -1,0 +1,65 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <time.h>
+#define MAX_MSG_SIZE 100
+
+// Funkcja do tworzenia segmentu pamięci dzielonej
+int createSharedMemory() {
+    key_t key = ftok("keyfile", 65);
+    int shmid = shmget(key, MAX_MSG_SIZE, IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("shmget");
+        exit(1);
+    }
+    return shmid;
+}
+
+// Funkcja do zapisu danych do segmentu pamięci dzielonej
+void writeToSharedMemory(int shmid, const char *data) {
+    char shared_memory = (char)shmat(shmid, (void*)0, 0);
+    if (shared_memory == (void*)-1) {
+        perror("shmat");
+        exit(1);
+    }
+    strcpy(shared_memory, data);
+    shmdt(shared_memory);
+}
+
+// Funkcja do uzyskania informacji na temat obszaru pamięci dzielonej
+void getSharedMemoryInfo(int shmid) {
+    struct shmid_ds shminfo;
+    if (shmctl(shmid, IPC_STAT, &shminfo) == -1) {
+        perror("shmctl");
+        exit(1);
+    }
+
+    printf("Informacje o segmencie pamięci dzielonej:\n");
+    printf("Rozmiar segmentu: %lu bajtów\n", shminfo.shm_segsz);
+    printf("Liczba przyczepionych procesów: %ld\n", shminfo.shm_nattch);
+    printf("Ostatnia operacja: %s", ctime(&shminfo.shm_atime));
+    printf("Ostatnia operacja zapisu: %s", ctime(&shminfo.shm_dtime));
+    printf("Ostatnia operacja odczytu: %s", ctime(&shminfo.shm_ctime));
+}
+
+int main() {
+    int shmid = createSharedMemory();
+
+    const char *data = "Hello, shared memory!";
+    writeToSharedMemory(shmid, data);
+
+    getSharedMemoryInfo(shmid);
+
+    // Usuwanie segmentu pamięci dzielonej
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+        perror("shmctl");
+        exit(1);
+    }
+
+    return 0;
+}
