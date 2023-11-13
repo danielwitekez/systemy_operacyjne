@@ -20,7 +20,7 @@ void *calculateDifference(void *arg) {
     return NULL;
 }
 
-int main() {
+int main(void) {
     pthread_t thread1, thread2;
     struct Params params1 = {5, 3};
     struct Params params2 = {8, 4};
