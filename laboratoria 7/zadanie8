@@ -1,0 +1,36 @@
+#include <stdio.h>
+#include <pthread.h>
+
+void *threadFunction(void *arg) {
+    printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
+
+    // Symulacja działania wątku
+    sleep(2);
+
+    printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
+    return NULL;
+}
+
+int main(void) {
+    pthread_t threads[20];
+
+    // Tworzenie 20 wątków
+    for (int i = 0; i < 20; ++i) {
+        pthread_create(&threads[i], NULL, threadFunction, NULL);
+    }
+
+    // Oczekiwanie na zakończenie pierwszego wątku
+    pthread_join(threads[0], NULL);
+
+    // Anulowanie pozostałych wątków
+    for (int i = 1; i < 20; ++i) {
+        pthread_cancel(threads[i]);
+    }
+
+    // Oczekiwanie na zakończenie anulowanych wątków (nie jest konieczne)
+    // for (int i = 1; i < 20; ++i) {
+    //     pthread_join(threads[i], NULL);
+    // }
+
+    return 0;
+}
