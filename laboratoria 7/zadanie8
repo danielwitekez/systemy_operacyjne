@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <pthread.h>
+
+void cleanupFunction(void *arg) {
+    printf("Funkcja sprzątająca wątku ID: %lu\n", pthread_self());
+}
+
+void *threadFunction(void *arg) {
+    pthread_cleanup_push(cleanupFunction, NULL);
+
+    printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
+
+    // Zakomentuj poniższą linię, aby sprawdzić, jak działa funkcja sprzątająca po anulowaniu wątku
+    // pthread_exit(NULL);
+
+    printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
+
+    pthread_cleanup_pop(1); // 1 oznacza, że funkcja sprzątająca zostanie wykonana
+    return NULL;
+}
+
+int main(void) {
+    pthread_t thread;
+
+    // Tworzenie wątku
+    pthread_create(&thread, NULL, threadFunction, NULL);
+
+    // Anulowanie wątku
+    pthread_cancel(thread);
+
+    // Oczekiwanie na zakończenie wątku (nie jest konieczne)
+    // pthread_join(thread, NULL);
+
+    return 0;
+}
