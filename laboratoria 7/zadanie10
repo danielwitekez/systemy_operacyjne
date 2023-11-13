@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <pthread.h>
+
+void *threadFunction(void *arg) {
+    printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
+
+    // Sprawdzenie, czy anulowanie wątku jest włączone
+    int cancelState;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &cancelState);
+    if (cancelState == PTHREAD_CANCEL_ENABLE) {
+        printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
+    } else {
+        printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
+    }
+
+    // Symulacja działania wątku
+    while (1) {
+        // Sprawdzenie, czy wątek został anulowany
+        pthread_testcancel();
+    }
+
+    return NULL;
+}
+
+int main(void) {
+    pthread_t thread;
+
+    // Włączenie anulowania wątków
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+    // Tworzenie wątku
+    pthread_create(&thread, NULL, threadFunction, NULL);
+
+    // Anulowanie wątku
+    pthread_cancel(thread);
+
+    // Oczekiwanie na zakończenie wątku (nie jest konieczne)
+    // pthread_join(thread, NULL);
+
+    return 0;
+}
