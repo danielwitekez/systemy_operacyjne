@@ -1,0 +1,37 @@
+#include <stdio.h>
+#include <pthread.h>
+
+// Zmienna globalna dostępna dla wszystkich wątków
+int globalVar = 0;
+
+void *threadFunction(void *arg) {
+    int localVar = *(int *)arg; // Zmienna lokalna dostępna tylko dla danego wątku
+
+    printf("Wątek ID: %lu - Zmienna globalna: %d, Zmienna lokalna: %d\n",
+           pthread_self(), globalVar, localVar);
+
+    globalVar++;
+    localVar++;
+
+    printf("Wątek ID: %lu - Zmienna globalna po inkrementacji: %d, Zmienna lokalna po inkrementacji: %d\n",
+           pthread_self(), globalVar, localVar);
+
+    return NULL;
+}
+
+int main(void) {
+    pthread_t thread1, thread2;
+    int localVar1 = 5, localVar2 = 10;
+
+    // Tworzenie wątków i przekazywanie zmiennych lokalnych
+    pthread_create(&thread1, NULL, threadFunction, (void *)&localVar1);
+    pthread_create(&thread2, NULL, threadFunction, (void *)&localVar2);
+
+    // Oczekiwanie na zakończenie wątków
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+
+    printf("Zmienna globalna po zakończeniu wątków: %d\n", globalVar);
+
+    return 0;
+}
