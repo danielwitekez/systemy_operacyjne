@@ -1,0 +1,29 @@
+#include <stdio.h>
+#include <pthread.h>
+
+void *joinedThread(void *arg) {
+    printf("Wątek Łączny ID: %lu\n", pthread_self());
+    return NULL;
+}
+
+void *detachedThread(void *arg) {
+    printf("Wątek Rozdzielny ID: %lu\n", pthread_self());
+    return NULL;
+}
+
+int main(void) {
+    pthread_t joined, detached;
+
+    // Wątek łączny
+    pthread_create(&joined, NULL, joinedThread, NULL);
+    pthread_join(joined, NULL);
+
+    // Wątek rozdzielny
+    pthread_create(&detached, NULL, detachedThread, NULL);
+    pthread_detach(detached);
+
+    // Oczekiwanie na zakończenie wątku rozdzielnie nie jest konieczne
+    // pthread_join(detached, NULL);  // Niepoprawne, bo detached
+
+    return 0;
+}
