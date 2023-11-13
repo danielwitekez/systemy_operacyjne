@@ -1,0 +1,38 @@
+#include <stdio.h>
+#include <pthread.h>
+
+#define ARRAY_SIZE 5
+
+struct ThreadData {
+    int array[ARRAY_SIZE];
+};
+
+void *threadFunction(void *arg) {
+    struct ThreadData *data = (struct ThreadData *)arg;
+
+    printf("Wątek ID: %lu - Tablica:\n", pthread_self());
+    for (int i = 0; i < ARRAY_SIZE; ++i) {
+        printf("%d ", data->array[i]);
+    }
+    printf("\n");
+
+    return NULL;
+}
+
+int main(void) {
+    pthread_t thread;
+    struct ThreadData data;
+
+    // Inicjalizacja tablicy
+    for (int i = 0; i < ARRAY_SIZE; ++i) {
+        data.array[i] = i + 1;
+    }
+
+    // Tworzenie wątku i przekazywanie tablicy
+    pthread_create(&thread, NULL, threadFunction, (void *)&data);
+
+    // Oczekiwanie na zakończenie wątku
+    pthread_join(thread, NULL);
+
+    return 0;
+}
