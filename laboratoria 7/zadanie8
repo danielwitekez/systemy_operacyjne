@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <time.h>
 
 void *threadFunction(void *arg) {
     printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
@@ -12,7 +13,8 @@ void *threadFunction(void *arg) {
         pthread_testcancel();
 
         // Symulacja obciążenia
-        usleep(500000); // 0.5 sekundy
+        struct timespec req = {0, 500000000}; // 0.5 sekundy
+        nanosleep(&req, NULL);
     }
 
     printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
