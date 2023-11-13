@@ -1,0 +1,34 @@
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+sem_t semaphore;
+
+void *threadFunction(void *arg) {
+    sem_wait(&semaphore);
+    printf("Wątek ID: %lu - Sekcja krytyczna\n", pthread_self());
+    sem_post(&semaphore);
+    return NULL;
+}
+
+int main(void) {
+    // Inicjalizacja semafora z wartością początkową większą od jeden
+    sem_init(&semaphore, 0, 3);
+
+    pthread_t thread1, thread2, thread3;
+
+    // Tworzenie wątków
+    pthread_create(&thread1, NULL, threadFunction, NULL);
+    pthread_create(&thread2, NULL, threadFunction, NULL);
+    pthread_create(&thread3, NULL, threadFunction, NULL);
+
+    // Oczekiwanie na zakończenie wątków (nie jest konieczne)
+    // pthread_join(thread1, NULL);
+    // pthread_join(thread2, NULL);
+    // pthread_join(thread3, NULL);
+
+    // Zniszczenie semafora
+    sem_destroy(&semaphore);
+
+    return 0;
+}
