@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <signal.h>
+#include <unistd.h>
+
+void *threadFunction(void *arg) {
+    while (1) {
+        printf("Wątek ID: %lu\n", pthread_self());
+        sleep(1);
+    }
+    return NULL;
+}
+
+void signalHandler(int signo) {
+    if (signo == SIGUSR1) {
+        printf("Otrzymano sygnał SIGUSR1 w wątku ID: %lu\n", pthread_self());
+    }
+}
+
+int main(void) {
+    pthread_t thread;
+    struct sigaction sa;
+
+    // Konfiguracja obsługi sygnału
+    sa.sa_handler = signalHandler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGUSR1, &sa, NULL);
+
+    // Tworzenie wątku
+    pthread_create(&thread, NULL, threadFunction, NULL);
+
+    // Wysłanie sygnału do wątku
+    pthread_kill(thread, SIGUSR1);
+
+    // Oczekiwanie na zakończenie wątku (nie jest konieczne)
+    // pthread_join(thread, NULL);
+
+    return 0;
+}
