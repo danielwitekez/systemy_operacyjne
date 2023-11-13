@@ -1,1 +1,54 @@
+#include <stdio.h>
+#include <pthread.h>
+
+// Zmienna globalna dostępna dla wszystkich wątków
+int globalVar = 0;
+
+pthread_key_t key;
+
+void destructor(void *value) {
+    printf("Zmienna prywatna wątku ID: %lu, Klucz: %lu, Wartość: %p\n",
+           pthread_self(), key, value);
+}
+
+void *threadFunction(void *arg) {
+    int *privateVar = (int *)arg;
+
+    // Ustawienie wartości zmiennej prywatnej
+    pthread_setspecific(key, privateVar);
+
+    printf("Wątek ID: %lu - Zmienna globalna: %d, Zmienna prywatna: %d\n",
+           pthread_self(), globalVar, *privateVar);
+
+    globalVar++;
+    (*privateVar)++;
+
+    printf("Wątek ID: %lu - Zmienna globalna po inkrementacji: %d, Zmienna prywatna po inkrementacji: %d\n",
+           pthread_self(), globalVar, *privateVar);
+
+    return NULL;
+}
+
+int main(void) {
+    pthread_t thread1, thread2;
+    int localVar1 = 5, localVar2 = 10;
+
+    // Inicjalizacja klucza
+    pthread_key_create(&key, destructor);
+
+    // Tworzenie wątków i przekazywanie zmiennych lokalnych
+    pthread_create(&thread1, NULL, threadFunction, (void *)&localVar1);
+    pthread_create(&thread2, NULL, threadFunction, (void *)&localVar2);
+
+    // Oczekiwanie na zakończenie wątków
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+
+    // Zniszczenie klucza
+    pthread_key_delete(key);
+
+    printf("Zmienna globalna po zakończeniu wątków: %d\n", globalVar);
+
+    return 0;
+}
 
