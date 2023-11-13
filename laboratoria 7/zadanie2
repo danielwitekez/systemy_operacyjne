@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <pthread.h>
+
+struct Params {
+    int num1;
+    int num2;
+};
+
+void *calculateSum(void *arg) {
+    struct Params *params = (struct Params *)arg;
+    int sum = params->num1 + params->num2;
+    printf("Suma: %d\n", sum);
+    return NULL;
+}
+
+void *calculateDifference(void *arg) {
+    struct Params *params = (struct Params *)arg;
+    int diff = params->num1 - params->num2;
+    printf("Różnica: %d\n", diff);
+    return NULL;
+}
+
+int main() {
+    pthread_t thread1, thread2;
+    struct Params params1 = {5, 3};
+    struct Params params2 = {8, 4};
+
+    pthread_create(&thread1, NULL, calculateSum, &params1);
+    pthread_create(&thread2, NULL, calculateDifference, &params2);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+
+    return 0;
+}
