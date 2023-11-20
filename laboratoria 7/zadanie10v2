@@ -1,0 +1,57 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+// Funkcja wykonywana przez wątek
+void* thread_function(void* arg) {
+    // Ustawienie anulowania wątku na aktywne
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    
+    // Ustawienie typu anulowania wątku na domyślny
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+
+    printf("Wątek rozpoczął pracę\n");
+
+    // Symulacja długotrwałej operacji
+    for (int i = 0; i < 5; ++i) {
+        printf("Pracuję... (%d)\n", i);
+        sleep(1);
+    }
+
+    printf("Wątek zakończył pracę\n");
+
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t thread;
+    
+    // Stworzenie nowego wątku
+    if (pthread_create(&thread, NULL, thread_function, NULL)) {
+        fprintf(stderr, "Błąd przy tworzeniu wątku\n");
+        return 1;
+    }
+
+    // Poczekaj chwilę, a następnie wyłącz anulowanie wątku
+    sleep(2);
+    printf("Wyłączanie anulowania wątku...\n");
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    // Poczekaj dłużej, aby wątek mógł zakończyć pracę
+    sleep(3);
+
+    // Włącz ponownie anulowanie wątku
+    printf("Włączanie anulowania wątku...\n");
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+    // Oczekiwanie na zakończenie wątku
+    if (pthread_join(thread, NULL)) {
+        fprintf(stderr, "Błąd przy oczekiwaniu na zakończenie wątku\n");
+        return 1;
+    }
+
+    printf("Program zakończył działanie\n");
+
+    return 0;
+}
