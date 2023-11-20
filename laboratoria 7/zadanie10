@@ -3,20 +3,17 @@
 #include <unistd.h>
 
 #define STOP_ITERATION 10
-#define PAUSE_TIME 5 // W sekundach
+#define PAUSE_TIME 5
 
 void *threadFunction(void *arg) {
     printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
 
-    // Włączenie anulowania wątków
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
 
-    // Symulacja działania wątku
     for (int i = 0; i < STOP_ITERATION; ++i) {
         printf("Wątek ID: %lu - Iteracja %d\n", pthread_self(), i);
 
-        // Sprawdzenie, czy wątek został anulowany
         pthread_testcancel();
 
         if (i == STOP_ITERATION / 2) {
