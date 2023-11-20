@@ -5,14 +5,9 @@
 void *threadFunction(void *arg) {
     printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
 
-    // Sprawdzenie, czy anulowanie wątku jest włączone
-    int cancelState;
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &cancelState);
-    if (cancelState == PTHREAD_CANCEL_ENABLE) {
-        printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
-    } else {
-        printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
-    }
+    // Wyłączenie anulowania wątków
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
 
     // Symulacja działania wątku
     for (int i = 0; i < 5; ++i) {
@@ -25,6 +20,10 @@ void *threadFunction(void *arg) {
         pthread_testcancel();
     }
 
+    // Włączenie anulowania wątków przed zakończeniem
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
+
     printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
     return NULL;
 }
@@ -32,14 +31,13 @@ void *threadFunction(void *arg) {
 int main(void) {
     pthread_t thread;
 
-    // Włączenie anulowania wątków
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
     // Tworzenie wątku
     pthread_create(&thread, NULL, threadFunction, NULL);
 
+    // Oczekiwanie na rozpoczęcie pracy wątku
+    sleep(2);
+
     // Anulowanie wątku po 3 sekundach
-    sleep(3);
     pthread_cancel(thread);
 
     // Oczekiwanie na zakończenie wątku
