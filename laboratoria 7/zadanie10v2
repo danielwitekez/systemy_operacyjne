@@ -15,28 +15,21 @@ int main(void) {
     pthread_t thread_id;
     int cancel_enabled;
 
-    // Tworzenie wątku
     pthread_create(&thread_id, NULL, thread_function, NULL);
 
-    // Poczekajmy chwilę, aby upewnić się, że wątek zdążył wystartować
     sleep(2);
 
-    // Sprawdzenie, czy anulowanie jest włączone
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &cancel_enabled);
     printf("Anulowanie wątków jest %s\n", (cancel_enabled == PTHREAD_CANCEL_ENABLE) ? "włączone" : "wyłączone");
 
-    // Włączenie anulowania wątku
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     printf("Anulowanie asynchroniczne wątków jest włączone\n");
 
-    // Poczekajmy chwilę, aby obserwować działanie wątku
     sleep(5);
 
-    // Anulowanie wątku
     pthread_cancel(thread_id);
     printf("Wątek anulowany\n");
 
-    // Poczekajmy, aż wątek zakończy działanie
     pthread_join(thread_id, NULL);
 
     return 0;
