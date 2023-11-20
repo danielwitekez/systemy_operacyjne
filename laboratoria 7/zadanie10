@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <unistd.h>
 
 void *threadFunction(void *arg) {
     printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
@@ -14,11 +15,17 @@ void *threadFunction(void *arg) {
     }
 
     // Symulacja działania wątku
-    while (1) {
+    for (int i = 0; i < 5; ++i) {
+        printf("Wątek ID: %lu - Iteracja %d\n", pthread_self(), i);
+
+        // Symulacja obciążenia
+        sleep(1);
+
         // Sprawdzenie, czy wątek został anulowany
         pthread_testcancel();
     }
 
+    printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
     return NULL;
 }
 
@@ -31,11 +38,12 @@ int main(void) {
     // Tworzenie wątku
     pthread_create(&thread, NULL, threadFunction, NULL);
 
-    // Anulowanie wątku
+    // Anulowanie wątku po 3 sekundach
+    sleep(3);
     pthread_cancel(thread);
 
-    // Oczekiwanie na zakończenie wątku (nie jest konieczne)
-    // pthread_join(thread, NULL);
+    // Oczekiwanie na zakończenie wątku
+    pthread_join(thread, NULL);
 
     return 0;
 }
