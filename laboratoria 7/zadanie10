@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define STOP_ITERATION 100
+#define STOP_ITERATION 10
 #define PAUSE_TIME 5 // W sekundach
 
 void *threadFunction(void *arg) {
@@ -43,16 +43,12 @@ void *threadFunction(void *arg) {
 int main(void) {
     pthread_t thread;
 
-    // Tworzenie wątku
     pthread_create(&thread, NULL, threadFunction, NULL);
 
-    // Oczekiwanie na rozpoczęcie pracy wątku
-    sleep(2);
+    sleep(16);
 
-    // Anulowanie wątku po 3 sekundach
     pthread_cancel(thread);
 
-    // Oczekiwanie na zakończenie wątku
     pthread_join(thread, NULL);
 
     return 0;
