@@ -21,7 +21,6 @@ void *threadFunction(void *arg) {
             pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
             printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
 
-            // Symulacja oczekiwania
             sleep(PAUSE_TIME);
 
             printf("Wątek ID: %lu - Wznawianie anulowania\n", pthread_self());
