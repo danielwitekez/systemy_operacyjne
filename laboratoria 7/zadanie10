@@ -3,11 +3,14 @@
 #include <unistd.h>
 
 void *threadFunction(void *arg) {
-    printf("Wątek ID: %lu - Rozpoczęcie pracy\n", pthread_self());
+    int oldState;
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &oldState);
 
-    // Wyłączenie anulowania wątków
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-    printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
+    if (oldState == PTHREAD_CANCEL_ENABLE) {
+        printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
+    } else {
+        printf("Wątek ID: %lu - Anulowanie wątku jest wyłączone\n", pthread_self());
+    }
 
     // Symulacja działania wątku
     for (int i = 0; i < 5; ++i) {
@@ -19,10 +22,6 @@ void *threadFunction(void *arg) {
         // Sprawdzenie, czy wątek został anulowany
         pthread_testcancel();
     }
-
-    // Włączenie anulowania wątków przed zakończeniem
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
 
     printf("Wątek ID: %lu - Zakończenie pracy\n", pthread_self());
     return NULL;
