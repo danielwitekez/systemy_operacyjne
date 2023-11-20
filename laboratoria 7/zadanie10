@@ -29,7 +29,6 @@ void *threadFunction(void *arg) {
             printf("Wątek ID: %lu - Anulowanie wątku jest włączone\n", pthread_self());
         }
 
-        // Symulacja obciążenia
         sleep(1);
     }
 
