@@ -1,0 +1,160 @@
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+void lock_file(int file_descriptor, short type) {
+    struct flock fl;
+    fl.l_type = type;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 0;
+    fl.l_len = 0;
+
+    // Sprawdzenie, czy plik jest już zablokowany
+    if (fcntl(file_descriptor, F_GETLK, &fl) != -1) {
+        if (fl.l_type != F_UNLCK) {
+            fprintf(stderr, "Plik jest już zablokowany przez inny proces. Nie można uzyskać dostępu.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Ustawienie blokady
+    if (fcntl(file_descriptor, F_SETLKW, &fl) == -1) {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void unlock_file(int file_descriptor) {
+    struct flock fl;
+    fl.l_type = F_UNLCK;
+
+    if (fcntl(file_descriptor, F_SETLK, &fl) == -1) {
+        perror("fcntl");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void reader(int file_descriptor) {
+    lock_file(file_descriptor, F_RDLCK);
+
+    char buffer[100];
+    ssize_t read_bytes = read(file_descriptor, buffer, sizeof(buffer) - 1);
+    if (read_bytes == -1) {
+        perror("read");
+        exit(EXIT_FAILURE);
+    } else {
+        buffer[read_bytes] = '\0';
+        printf("Proces czytający (%d): Odczytano dane: %s\n", getpid(), buffer);
+    }
+
+    unlock_file(file_descriptor);
+}
+
+void writer(int file_descriptor) {
+    lock_file(file_descriptor, F_WRLCK);
+
+    const char *message = "Hello, File!";
+    ssize_t write_bytes = write(file_descriptor, message, strlen(message));
+    if (write_bytes == -1) {
+        perror("write");
+        exit(EXIT_FAILURE);
+    } else {
+        printf("Proces zapisujący (%d): Zapisano dane: %s\n", getpid(), message);
+    }
+
+    unlock_file(file_descriptor);
+}
+
+void invalid_access(int file_descriptor) {
+    printf("Proces próbujący uzyskać dostęp do zablokowanego pliku (%d)\n", getpid());
+
+    // Spróbuj ponownie zablokować plik, który już jest zablokowany
+    lock_file(file_descriptor, F_WRLCK);
+
+    printf("Ten komunikat nie powinien się pojawić, proces powinien być zablokowany.\n");
+}
+
+void correct_access(int file_descriptor) {
+    lock_file(file_descriptor, F_WRLCK);
+
+    const char *message = "Correct Access!";
+    ssize_t write_bytes = write(file_descriptor, message, strlen(message));
+    if (write_bytes == -1) {
+        perror("write");
+        exit(EXIT_FAILURE);
+    } else {
+        printf("Proces korzystający z poprawnej sekwencji (%d): Zapisano dane: %s\n", getpid(), message);
+    }
+
+    unlock_file(file_descriptor);
+}
+
+int main() {
+    const char *file_path = "example.txt";
+    int file_descriptor;
+
+    file_descriptor = open(file_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    if (file_descriptor == -1) {
+        perror("open");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t child_pid1 = fork();
+
+    if (child_pid1 == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (child_pid1 == 0) {
+        reader(file_descriptor);
+        exit(EXIT_SUCCESS);
+    }
+
+    waitpid(child_pid1, NULL, 0);
+
+    pid_t child_pid2 = fork();
+
+    if (child_pid2 == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (child_pid2 == 0) {
+        writer(file_descriptor);
+        exit(EXIT_SUCCESS);
+    }
+
+    waitpid(child_pid2, NULL, 0);
+
+    pid_t child_pid3 = fork();
+
+    if (child_pid3 == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (child_pid3 == 0) {
+        invalid_access(file_descriptor);
+        exit(EXIT_SUCCESS);
+    }
+
+    waitpid(child_pid3, NULL, 0);
+
+    pid_t child_pid4 = fork();
+
+    if (child_pid4 == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (child_pid4 == 0) {
+        correct_access(file_descriptor);
+        exit(EXIT_SUCCESS);
+    }
+
+    waitpid(child_pid4, NULL, 0);
+
+    if (close(file_descriptor) == -1) {
+        perror("close");
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+
