@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <time.h>
+
+#define SERVER_IP "127.0.0.1"
+#define PORT 12345
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <packet_size>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    int packet_size = atoi(argv[1]);
+    if (packet_size <= 0) {
+        fprintf(stderr, "Invalid packet size\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Utworzenie gniazda klienta
+    int client_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (client_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Konfiguracja adresu serwera
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_port = htons(PORT);
+
+    // Wysyłanie pakietów i pomiar czasu
+    const int num_packets = 10;  // Ilość wysyłanych pakietów
+    char buffer[packet_size];
+
+    for (int i = 0; i < num_packets; i++) {
+        // Wypełnienie bufora pseudolosowymi danymi (dla testów)
+        for (int j = 0; j < packet_size; j++) {
+            buffer[j] = rand() % 256;
+        }
+
+        // Pomiar czasu przed wysłaniem pakietu
+        struct timespec start_time;
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+        // Wysłanie pakietu do serwera
+        if (sendto(client_socket, buffer, packet_size, 0, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+            perror("sendto");
+            close(client_socket);
+            exit(EXIT_FAILURE);
+        }
+
+        // Odbiór potwierdzenia od serwera (opcjonalne)
+        // ...
+
+        // Pomiar czasu po wysłaniu pakietu
+        struct timespec end_time;
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+        // Obliczenie czasu trwania przesyłania pakietu
+        double elapsed_time = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_nsec - start_time.tv_nsec) / 1e9;
+        printf("Packet %d: %.6f seconds\n", i + 1, elapsed_time);
+
+        // Oczekiwanie przed wysłaniem kolejnego pakietu (opcjonalne)
+        sleep(1);
+    }
+
+    // Zamknięcie gniazda klienta
+    close(client_socket);
+
+    return 0;
+}
