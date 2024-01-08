@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define NUM_WORKERS 3
+#define START_NUMBER 2
+#define END_NUMBER 302
+#define PORT 12345
+
+void distribute_numbers(int *worker_sockets) {
+    int current_number = START_NUMBER;
+
+    while (current_number <= END_NUMBER) {
+        for (int i = 0; i < NUM_WORKERS; i++) {
+            // Wysyłanie liczby do workerów
+            if (send(worker_sockets[i], &current_number, sizeof(int), 0) == -1) {
+                perror("send");
+                exit(EXIT_FAILURE);
+            }
+            printf("Sent number %d to Worker %d\n", current_number, i);
+
+            current_number++;
+        }
+    }
+
+    // Wysłanie sygnału kończącego do workerów
+    for (int i = 0; i < NUM_WORKERS; i++) {
+        int signal = -1;  // Wartość sygnału kończącego
+        if (send(worker_sockets[i], &signal, sizeof(int), 0) == -1) {
+            perror("send");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+int main(void) {
+    // Utworzenie gniazda farmera
+    int farmer_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (farmer_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Konfiguracja adresu farmera
+    struct sockaddr_in farmer_addr;
+    farmer_addr.sin_family = AF_INET;
+    farmer_addr.sin_addr.s_addr = INADDR_ANY;
+    farmer_addr.sin_port = htons(PORT);
+
+    // Przypisanie adresu do gniazda farmera
+    if (bind(farmer_socket, (struct sockaddr *)&farmer_addr, sizeof(farmer_addr)) == -1) {
+        perror("bind");
+        close(farmer_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    // Oczekiwanie na połączenie od workerów
+    struct sockaddr_in worker_addrs[NUM_WORKERS];
+    int worker_sockets[NUM_WORKERS];
+
+    for (int i = 0; i < NUM_WORKERS; i++) {
+        socklen_t worker_addr_len = sizeof(worker_addrs[i]);
+        worker_sockets[i] = accept(farmer_socket, (struct sockaddr *)&worker_addrs[i], &worker_addr_len);
+        if (worker_sockets[i] == -1) {
+            perror("accept");
+            close(farmer_socket);
+            exit(EXIT_FAILURE);
+        }
+        printf("Worker %d connected\n", i);
+    }
+
+    // Rozpoczęcie dystrybucji liczb do workerów
+    distribute_numbers(worker_sockets);
+
+    // Zamknięcie gniazd farmera i workerów
+    for (int i = 0; i < NUM_WORKERS; i++) {
+        close(worker_sockets[i]);
+    }
+    close(farmer_socket);
+
+    return 0;
+}
