@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <time.h>
+
+#define SERVER_IP "127.0.0.1"
+
+void fill_buffer_random(char *buffer, int size) {
+    for (int i = 0; i < size; i++) {
+        buffer[i] = rand() % 256;
+    }
+}
+
+double measure_time() {
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return time.tv_sec + time.tv_nsec / 1e9;
+}
+
+void send_packets(int socket, int packet_size) {
+    const int num_packets = 10;
+
+    for (int i = 0; i < num_packets; i++) {
+        char buffer[packet_size];
+        fill_buffer_random(buffer, packet_size);
+
+        double start_time = measure_time();
+
+        if (send(socket, buffer, packet_size, 0) == -1) {
+            perror("send");
+            close(socket);
+            exit(EXIT_FAILURE);
+        }
+
+        double end_time = measure_time();
+        double elapsed_time = end_time - start_time;
+
+        printf("Packet %d: %.6f seconds\n", i + 1, elapsed_time);
+
+        sleep(1);
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <packet_size>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    int packet_size = atoi(argv[1]);
+    if (packet_size <= 0) {
+        fprintf(stderr, "Invalid packet size\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_port = htons(PORT);
+
+    if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("connect");
+        close(client_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    send_packets(client_socket, packet_size);
+
+    close(client_socket);
+
+    return 0;
+}
