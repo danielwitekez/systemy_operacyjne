@@ -1,0 +1,74 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#define PORT 12345
+
+int is_prime(int number) {
+    if (number < 2) {
+        return 0;  // Liczby mniejsze niż 2 nie są pierwsze
+    }
+    for (int i = 2; i * i <= number; i++) {
+        if (number % i == 0) {
+            return 0;  // Liczba dzieli się przez i, więc nie jest pierwsza
+        }
+    }
+    return 1;  // Liczba jest pierwsza
+}
+
+int main(void) {
+    // Utworzenie gniazda workera
+    int worker_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (worker_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Konfiguracja adresu workera
+    struct sockaddr_in worker_addr;
+    worker_addr.sin_family = AF_INET;
+    worker_addr.sin_addr.s_addr = INADDR_ANY;
+    worker_addr.sin_port = htons(PORT);
+
+    // Przypisanie adresu do gniazda workera
+    if (bind(worker_socket, (struct sockaddr *)&worker_addr, sizeof(worker_addr)) == -1) {
+        perror("bind");
+        close(worker_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    // Oczekiwanie na liczby od farmara
+    while (1) {
+        int received_number;
+        ssize_t received_bytes = recv(worker_socket, &received_number, sizeof(int), 0);
+        if (received_bytes == -1) {
+            perror("recv");
+            close(worker_socket);
+            exit(EXIT_FAILURE);
+        }
+
+        // Sprawdzenie, czy otrzymana liczba jest pierwsza
+        int result = is_prime(received_number);
+
+        // Odesłanie wyniku do farmara
+        if (send(worker_socket, &result, sizeof(int), 0) == -1) {
+            perror("send");
+            close(worker_socket);
+            exit(EXIT_FAILURE);
+        }
+
+        // Zakończenie, jeśli otrzymano sygnał kończący od farmara
+        if (received_number == -1) {
+            printf("Received termination signal. Exiting...\n");
+            break;
+        }
+    }
+
+    // Zamknięcie gniazda workera
+    close(worker_socket);
+
+    return 0;
+}
