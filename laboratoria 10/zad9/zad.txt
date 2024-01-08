@@ -1,0 +1,106 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/select.h>
+
+#define PORT 12345
+#define MAX_CONNECTIONS 5
+
+int main(void) {
+    // Utworzenie gniazda serwera
+    int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Konfiguracja adresu serwera
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    // Przypisanie adresu do gniazda serwera
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("bind");
+        close(server_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    // Nasłuchiwanie na połączenia
+    if (listen(server_socket, MAX_CONNECTIONS) == -1) {
+        perror("listen");
+        close(server_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server is listening on port %d\n", PORT);
+
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(server_socket, &read_fds);
+
+    while (1) {
+        // Ustawienie kopii zbioru na potrzeby funkcji select
+        fd_set tmp_fds = read_fds;
+        
+        // Ustawienie timeout na NULL, aby select był blokujący
+        if (select(FD_SETSIZE, &tmp_fds, NULL, NULL, NULL) == -1) {
+            perror("select");
+            close(server_socket);
+            exit(EXIT_FAILURE);
+        }
+
+        // Sprawdzenie, czy nowe połączenie jest dostępne na gnieździe serwera
+        if (FD_ISSET(server_socket, &tmp_fds)) {
+            // Akceptowanie połączenia od klienta
+            struct sockaddr_in client_addr;
+            socklen_t client_addr_len = sizeof(client_addr);
+            int client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_addr_len);
+            if (client_socket == -1) {
+                perror("accept");
+                close(server_socket);
+                exit(EXIT_FAILURE);
+            }
+
+            printf("New connection accepted\n");
+
+            // Dodanie gniazda klienta do zbioru gniazd do monitorowania
+            FD_SET(client_socket, &read_fds);
+        }
+
+        // Sprawdzenie, czy dane są dostępne do odczytu na innych gniazdach
+        for (int i = server_socket + 1; i < FD_SETSIZE; i++) {
+            if (FD_ISSET(i, &tmp_fds)) {
+                int buffer[10];
+                int received_bytes = recv(i, buffer, sizeof(buffer), 0);
+
+                if (received_bytes > 0) {
+                    // Przetwarzanie odebranych danych (np. wyświetlanie)
+                    printf("Received from client: ");
+                    for (int j = 0; j < received_bytes / sizeof(int); j++) {
+                        printf("%d ", buffer[j]);
+                    }
+                    printf("\n");
+                } else if (received_bytes == 0) {
+                    // Połączenie z klientem zakończone
+                    printf("Client disconnected\n");
+                    close(i);
+                    FD_CLR(i, &read_fds);
+                } else {
+                    perror("recv");
+                    close(i);
+                    FD_CLR(i, &read_fds);
+                }
+            }
+        }
+    }
+
+    // Zamknięcie gniazda serwera (ten fragment kodu nie zostanie osiągnięty)
+    close(server_socket);
+
+    return 0;
+}
