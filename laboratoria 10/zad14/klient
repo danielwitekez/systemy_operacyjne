@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+
+#define SERVER_IP "127.0.0.1"
+#define PORT 12345
+#define MAX_MESSAGE_LEN 256
+
+void receive_messages(int socket) {
+    char message[MAX_MESSAGE_LEN];
+
+    while (1) {
+        // Odbiór wiadomości od serwera
+        if (recv(socket, message, sizeof(message), 0) == -1) {
+            perror("recv");
+            close(socket);
+            exit(EXIT_FAILURE);
+        }
+
+        // Wyświetlenie odebranej wiadomości
+        printf("%s\n", message);
+    }
+}
+
+void send_message(int socket, char *message) {
+    // Wysłanie wiadomości do serwera
+    if (send(socket, message, strlen(message), 0) == -1) {
+        perror("send");
+        close(socket);
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(void) {
+    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == -1) {
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_port = htons(PORT);
+
+    if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("connect");
+        close(client_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    char username[50];
+    char message[MAX_MESSAGE_LEN];
+
+    // Wprowadzenie nazwy użytkownika
+    printf("Enter your username: ");
+    fgets(username, sizeof(username), stdin);
+    username[strcspn(username, "\n")] = '\0';  // Usunięcie znaku nowej linii
+
+    // Wysłanie nazwy użytkownika do serwera
+    if (send(client_socket, username, sizeof(username), 0) == -1) {
+        perror("send");
+        close(client_socket
