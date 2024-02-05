@@ -1,0 +1,54 @@
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+volatile sig_atomic_t flag = 0;
+
+void handleSignal(int signum) {
+    flag = 1;
+}
+
+void setupSignalHandler() {
+    struct sigaction sa;
+    sa.sa_handler = handleSignal;
+    sa.sa_flags = 0;
+    sigaction(SIGUSR1, &sa, NULL);
+}
+
+void performComplexOperation() {
+    // Tutaj wykonywane są skomplikowane czynności
+    // ...
+
+    printf("Skomplikowane czynności wykonane.\n");
+}
+
+void mainProcess() {
+    while (1) {
+        if (flag) {
+            performComplexOperation();
+            flag = 0;
+        }
+        sleep(1);
+    }
+}
+
+void spawnChildProcess() {
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        mainProcess();
+    } else {
+        // Proces macierzysty
+        setupSignalHandler();
+        wait(NULL);
+    }
+}
+
+int main(void) {
+    spawnChildProcess();
+
+    return 0;
+}
