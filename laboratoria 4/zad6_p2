@@ -1,0 +1,32 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+
+struct msg_buffer {
+    long msg_type;
+    char msg_text[100];
+};
+
+int main() {
+    key_t key = ftok("/tmp", 'B');
+    int msgid = msgget(key, 0666 | IPC_CREAT);
+    struct msg_buffer message;
+
+    while (1) {
+        // Wysyłanie informacji do Programu 1
+        message.msg_type = getpid();
+        sprintf(message.msg_text, "Informacja od Programu 2");
+        msgsnd(msgid, &message, sizeof(message), 0);
+
+        // Odbieranie odpowiedzi od Programu 1
+        msgrcv(msgid, &message, sizeof(message), 2, 0);
+        printf("Program 2: Odebrano odpowiedź od Programu 1: %s\n", message.msg_text);
+
+        sleep(1);  // Oczekiwanie przed ponownym odbiorem i wysyłaniem
+    }
+
+    return 0;
+}
