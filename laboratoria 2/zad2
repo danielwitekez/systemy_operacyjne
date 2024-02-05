@@ -1,0 +1,25 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void createZombieProcess() {
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        printf("Proces potomny: PID = %d, PPID = %d\n", getpid(), getppid());
+        exit(0); // Proces potomny kończy się, stając się zombie
+    } else {
+        // Proces rodzicielski
+        sleep(10); // Czas na utworzenie procesu potomnego
+        printf("Proces rodzicielski: PID = %d\n", getpid());
+    }
+}
+
+int main(void) {
+    createZombieProcess();
+
+    return 0;
+}
