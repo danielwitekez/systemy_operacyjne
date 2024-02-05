@@ -24,4 +24,38 @@ void blockSignals() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Sygnał SIGINT odblokowany. Oczekiwanie na sygna
+    printf("Sygnał SIGINT odblokowany. Oczekiwanie na sygnał...\n");
+    while (1) {
+        pause();
+    }
+}
+
+void ignoreSignals() {
+    signal(SIGTERM, SIG_IGN);
+    signal(SIGUSR1, SIG_IGN);
+
+    printf("Sygnały SIGTERM i SIGUSR1 zostaną zignorowane. Oczekiwanie na sygnały...\n");
+    while (1) {
+        pause();
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Podaj numer programu (1 - blokowanie, 2 - ignorowanie).\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int programNumber = atoi(argv[1]);
+
+    if (programNumber == 1) {
+        blockSignals();
+    } else if (programNumber == 2) {
+        ignoreSignals();
+    } else {
+        fprintf(stderr, "Niepoprawny numer programu.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+}
