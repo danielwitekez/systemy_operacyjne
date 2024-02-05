@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 void handleSignal(int signum) {
     printf("Otrzymano sygnał %d\n", signum);
