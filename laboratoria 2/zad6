@@ -1,0 +1,25 @@
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+void handleSignal(int signum) {
+    printf("Otrzymano sygnał SIGALRM.\n");
+}
+
+void sendAndHandleAlarmSignal() {
+    signal(SIGALRM, handleSignal);
+
+    // Wyślij sygnał SIGALRM do samego siebie po 2 sekundach
+    alarm(2);
+
+    // Czekaj na sygnały
+    while (1) {
+        sleep(1);
+    }
+}
+
+int main(void) {
+    sendAndHandleAlarmSignal();
+
+    return 0;
+}
