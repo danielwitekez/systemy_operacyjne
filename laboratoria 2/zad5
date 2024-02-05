@@ -1,0 +1,26 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void replaceProcess() {
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        execl("/path/to/your/second/program", "second_program", NULL);
+        perror("execl"); // Jeśli execl się nie powiedzie
+        exit(EXIT_FAILURE);
+    } else {
+        // Proces rodzicielski
+        wait(NULL);
+        printf("Proces rodzicielski: Proces potomny zakończony.\n");
+    }
+}
+
+int main(void) {
+    replaceProcess();
+
+    return 0;
+}
