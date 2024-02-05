@@ -2,54 +2,66 @@
 #include <signal.h>
 #include <unistd.h>
 
-volatile sig_atomic_t flag = 0;
-
 void handleSignal(int signum) {
     printf("Otrzymano sygnał %d\n", signum);
-    flag = 1;
 }
 
-void setupSignalHandler() {
-    struct sigaction sa;
-    sa.sa_handler = handleSignal;
-    sa.sa_flags = 0;
-    sigaction(SIGUSR1, &sa, NULL);
+void sendSignal(int pid, int signum) {
+    sleep(1);
+    kill(pid, signum);
 }
 
-void performComplexOperation() {
-    // Tutaj wykonywane są skomplikowane czynności
-    // ...
+void processOne() {
+    signal(SIGUSR1, handleSignal);
 
-    printf("Skomplikowane czynności wykonane.\n");
-}
-
-void mainProcess() {
     for (int i = 0; i < 6; i++) {
-        if (flag) {
-            performComplexOperation();
-            flag = 0;
-        }
         sleep(1);
+        sendSignal(getpid() + 2, SIGUSR1);
     }
 }
 
-void spawnChildProcess() {
-    pid_t pid = fork();
+void processTwo() {
+    signal(SIGUSR1, handleSignal);
+    signal(SIGUSR2, handleSignal);
 
-    if (pid == -1) {
-        perror("fork");
-    } else if (pid == 0) {
-        // Proces potomny
-        mainProcess();
-    } else {
-        // Proces macierzysty
-        setupSignalHandler();
-        wait(NULL);
+    for (int i = 0; i < 6; i++) {
+        pause();
+        printf("Proces drugi: Otrzymano sygnał SIGUSR1, przesyłam SIGUSR2 do procesu trzeciego.\n");
+        sendSignal(getpid() + 2, SIGUSR2);
+    }
+}
+
+void processThree() {
+    signal(SIGUSR2, handleSignal);
+
+    for (int i = 0; i < 6; i++) {
+        pause();
+        printf("Proces trzeci: Otrzymano sygnał SIGUSR2, przesyłam SIGUSR1 do procesu drugiego.\n");
+        sendSignal(getpid() - 2, SIGUSR1);
+    }
+}
+
+void processFour() {
+    signal(SIGUSR1, handleSignal);
+
+    for (int i = 0; i < 6; i++) {
+        pause();
+        printf("Proces czwarty: Otrzymano sygnał SIGUSR1\n");
     }
 }
 
 int main(void) {
-    spawnChildProcess();
+    pid_t pid2, pid3, pid4;
+
+    if ((pid2 = fork()) == 0) {
+        processTwo();
+    } else if ((pid3 = fork()) == 0) {
+        processThree();
+    } else if ((pid4 = fork()) == 0) {
+        processFour();
+    } else {
+        processOne();
+    }
 
     return 0;
 }
