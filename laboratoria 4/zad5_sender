@@ -1,0 +1,26 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+
+struct msg_buffer {
+    long msg_type;
+    char msg_text[100];
+};
+
+int main() {
+    key_t key = ftok("/tmp", 'A');
+    int msgid = msgget(key, 0666 | IPC_CREAT);
+    struct msg_buffer message;
+
+    message.msg_type = 1;
+
+    for (int i = 1; i <= 10; ++i) {
+        sprintf(message.msg_text, "Komunikat %d", i);
+        msgsnd(msgid, &message, sizeof(message), 0);
+    }
+
+    return 0;
+}
