@@ -1,0 +1,27 @@
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+void blockSignals() {
+    sigset_t set;
+    sigemptyset(&set);
+
+    // Dodaj sygnał do zbioru
+    sigaddset(&set, SIGINT);
+
+    // Blokuj sygnał w bieżącym procesie
+    if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) {
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Sygnał SIGINT zablokowany. Odczekaj kilka sekund...\n");
+    sleep(5);
+
+    // Odblokuj sygnał w bieżącym procesie
+    if (sigprocmask(SIG_UNBLOCK, &set, NULL) == -1) {
+        perror("sigprocmask");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Sygnał SIGINT odblokowany. Oczekiwanie na sygna
