@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
-#include <sys/wait.h>
 
 void handleSignal(int signum) {
     printf("Otrzymano sygnał %d\n", signum);
@@ -26,7 +25,7 @@ void processTwo() {
     signal(SIGUSR2, handleSignal);
 
     for (int i = 0; i < 6; i++) {
-        pause();
+        sleep(1);
         printf("Proces drugi: Otrzymano sygnał SIGUSR1, przesyłam SIGUSR2 do procesu trzeciego.\n");
         sendSignal(getpid() + 2, SIGUSR2);
     }
@@ -36,7 +35,7 @@ void processThree() {
     signal(SIGUSR2, handleSignal);
 
     for (int i = 0; i < 6; i++) {
-        pause();
+        sleep(1);
         printf("Proces trzeci: Otrzymano sygnał SIGUSR2, przesyłam SIGUSR1 do procesu drugiego.\n");
         sendSignal(getpid() - 2, SIGUSR1);
     }
@@ -46,7 +45,7 @@ void processFour() {
     signal(SIGUSR1, handleSignal);
 
     for (int i = 0; i < 6; i++) {
-        pause();
+        sleep(1);
         printf("Proces czwarty: Otrzymano sygnał SIGUSR1\n");
     }
 }
