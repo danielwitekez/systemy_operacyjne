@@ -1,0 +1,38 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <string.h>
+
+struct msg_buffer {
+    long msg_type;
+    char msg_text[100];
+};
+
+struct variable_msg_buffer {
+    long msg_type;
+    size_t size;
+    char msg_text[1];  // Placeholder, można dostosować do maksymalnej wielkości komunikatu
+};
+
+int main() {
+    key_t key = ftok("/tmp", 'C');
+    int msgid = msgget(key, 0666 | IPC_CREAT);
+    
+    // Wysyłanie komunikatu o zmiennej wielkości
+    struct variable_msg_buffer *v_message = (struct variable_msg_buffer *)malloc(sizeof(struct variable_msg_buffer) + 10);
+    v_message->msg_type = 1;
+    v_message->size = 10;
+    strncpy(v_message->msg_text, "Hello", 10);
+    msgsnd(msgid, v_message, sizeof(struct variable_msg_buffer) + 10, 0);
+    
+    // Wysyłanie komunikatu o stałej wielkości
+    struct msg_buffer message;
+    message.msg_type = 2;
+    strncpy(message.msg_text, "World", 5);
+    msgsnd(msgid, &message, sizeof(message), 0);
+
+    return 0;
+}
