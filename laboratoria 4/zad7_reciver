@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+#include <string.h>
+
+struct msg_buffer {
+    long msg_type;
+    char msg_text[100];
+};
+
+struct variable_msg_buffer {
+    long msg_type;
+    size_t size;
+    char msg_text[1];  // Placeholder, można dostosować do maksymalnej wielkości komunikatu
+};
+
+int main() {
+    key_t key = ftok("/tmp", 'C');
+    int msgid = msgget(key, 0666 | IPC_CREAT);
+    
+    // Odbieranie komunikatu o zmiennej wielkości
+    struct variable_msg_buffer *v_message = (struct variable_msg_buffer *)malloc(sizeof(struct variable_msg_buffer) + 10);
+    msgrcv(msgid, v_message, sizeof(struct variable_msg_buffer) + 10, 1, 0);
+    printf("Odebrano komunikat o zmiennej wielkości: %.*s\n", (int)v_message->size, v_message->msg_text);
+
+    // Odbieranie komunikatu o stałej wielkości
+    struct msg_buffer message;
+    msgrcv(msgid, &message, sizeof(message), 2, 0);
+    printf("Odebrano komunikat o stałej wielkości: %s\n", message.msg_text);
+
+    return 0;
+}
