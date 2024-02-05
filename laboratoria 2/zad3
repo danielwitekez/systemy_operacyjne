@@ -1,0 +1,27 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+void waitForChildProcess() {
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        printf("Proces potomny: PID = %d\n", getpid());
+        exit(0);
+    } else {
+        // Proces rodzicielski
+        int status;
+        waitpid(pid, &status, 0);
+        printf("Proces rodzicielski: Proces potomny zakończył się z kodem %d\n", WEXITSTATUS(status));
+    }
+}
+
+int main(void) {
+    waitForChildProcess();
+
+    return 0;
+}
