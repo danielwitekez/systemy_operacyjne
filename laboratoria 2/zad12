@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+void handleSignal(int signum) {
+    printf("Otrzymano sygnał SIGCHLD.\n");
+    wait(NULL);
+}
+
+void ignoreSIGCHLD() {
+    signal(SIGCHLD, SIG_IGN);
+
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        printf("Proces potomny: PID = %d\n", getpid());
+        exit(EXIT_SUCCESS);
+    } else {
+        // Proces macierzysty
+        sleep(2); // Czekaj na zakończenie procesu potomnego
+        printf("Proces macierzysty: Zakończono czekanie.\n");
+    }
+}
+
+int main(void) {
+    signal(SIGCHLD, handleSignal);
+    ignoreSIGCHLD();
+
+    return 0;
+}
