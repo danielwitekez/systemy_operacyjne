@@ -13,7 +13,7 @@ void sendAndHandleAlarmSignal() {
     alarm(2);
 
     // Czekaj na sygnały
-    while (1) {
+    for(int i=0;i<6;i++) {
         sleep(1);
     }
 }
