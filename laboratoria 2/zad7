@@ -1,0 +1,36 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+void handleSignal(int signum) {
+    printf("Otrzymano sygnał SIGINT w procesie potomnym.\n");
+    exit(EXIT_SUCCESS);
+}
+
+void sendSIGINTToChild() {
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+    } else if (pid == 0) {
+        // Proces potomny
+        signal(SIGINT, handleSignal);
+        while (1) {
+            sleep(1);
+        }
+    } else {
+        // Proces rodzicielski
+        sleep(2);
+        printf("Proces rodzicielski: Wysyłam sygnał SIGINT do potomka.\n");
+        kill(pid, SIGINT);
+        wait(NULL);
+        printf("Proces rodzicielski: Proces potomny zakończony.\n");
+    }
+}
+
+int main(void) {
+    sendSIGINTToChild();
+
+    return 0;
+}
